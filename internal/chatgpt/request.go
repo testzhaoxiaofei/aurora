@@ -14,6 +14,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/rand"
 	"net/http"
 
@@ -260,7 +261,10 @@ func CalcProofToken(seed string, diff string) string {
 	return "gAAAAABwQ8Lk5FbGpA2NcR9dShT6gYjU7VxZ4D" + base64.StdEncoding.EncodeToString([]byte(`"`+seed+`"`))
 }
 
+//获取uuid 对接代理地址，请求一组代理对应的
+
 func InitTurnStile(client httpclient.AuroraHttpClient, secret *tokens.Secret, proxy string) (*TurnStile, int, error) {
+
 	poolMutex.Lock()
 	defer poolMutex.Unlock()
 	currTurnToken := TurnStilePool[secret.Token]
@@ -294,6 +298,7 @@ func InitTurnStile(client httpclient.AuroraHttpClient, secret *tokens.Secret, pr
 	}
 	return currTurnToken, 0, nil
 }
+
 func POSTTurnStile(client httpclient.AuroraHttpClient, secret *tokens.Secret, proxy string, retry int) (*http.Response, error) {
 	if proxy != "" {
 		client.SetProxy(proxy)
@@ -356,6 +361,7 @@ func getURLAttribution(client httpclient.AuroraHttpClient, access_token string, 
 }
 
 func POSTconversation(client httpclient.AuroraHttpClient, message chatgpt_types.ChatGPTRequest, secret *tokens.Secret, chat_token *TurnStile, proxy string) (*http.Response, error) {
+	log.Println("当前的代理", proxy)
 	if proxy != "" {
 		client.SetProxy(proxy)
 	}

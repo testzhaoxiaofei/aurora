@@ -10,6 +10,7 @@ import (
 	officialtypes "aurora/typings/official"
 	"aurora/util"
 	"io"
+	"log"
 	"os"
 	"strings"
 
@@ -158,8 +159,15 @@ func (h *Handler) nightmare(c *gin.Context) {
 		}})
 		return
 	}
-	proxyUrl := h.proxy.GetProxyIP()
+
+	//获取信息
+
+	deviceId, ips := tokens.ConfigProxy()
+	proxyUrl := tokens.Ipv6Set(ips)
+
+	log.Println("deviceId, proxyUrl", deviceId, proxyUrl)
 	secret := h.token.GetSecret()
+	secret.Token = deviceId
 	authHeader := c.GetHeader("Authorization")
 	if authHeader != "" {
 		customAccessToken := strings.Replace(authHeader, "Bearer ", "", 1)
@@ -204,6 +212,7 @@ func (h *Handler) nightmare(c *gin.Context) {
 		})
 		return
 	}
+
 	defer response.Body.Close()
 	if chatgpt.Handle_request_error(c, response) {
 		return
