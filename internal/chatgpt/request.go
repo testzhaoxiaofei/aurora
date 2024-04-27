@@ -58,17 +58,19 @@ var (
 	FILES_REVERSE_PROXY = os.Getenv("FILES_REVERSE_PROXY")
 	connPool            = map[string][]*connInfo{}
 	poolMutex           = sync.Mutex{}
-	TurnStilePool       = map[string]*TurnStile{}
-	userAgent           = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.0.0 Safari/537.36"
-	cores               = []int{8, 12, 16, 24}
-	screens             = []int{3000, 4000, 6000}
-	timeLocation, _     = time.LoadLocation("Asia/Shanghai")
-	timeLayout          = "Mon Jan 2 2006 15:04:05"
+	//TurnStilePool       = map[string]*TurnStile{}
+	TurnStilePool   sync.Map
+	userAgent       = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.0.0 Safari/537.36"
+	cores           = []int{8, 12, 16, 24}
+	screens         = []int{3000, 4000, 6000}
+	timeLocation, _ = time.LoadLocation("Asia/Shanghai")
+	timeLayout      = "Mon Jan 2 2006 15:04:05"
 )
 
 func getWSURL(client httpclient.AuroraHttpClient, token string, retry int) (string, error) {
 	requestURL := BaseURL + "/register-websocket"
 	header := make(httpclient.AuroraHeaders)
+
 	header.Set("User-Agent", userAgent)
 	header.Set("Accept", "*/*")
 	header.Set("Oai-Language", "en-US")
@@ -261,14 +263,10 @@ func CalcProofToken(seed string, diff string) string {
 	return "gAAAAABwQ8Lk5FbGpA2NcR9dShT6gYjU7VxZ4D" + base64.StdEncoding.EncodeToString([]byte(`"`+seed+`"`))
 }
 
-//获取uuid 对接代理地址，请求一组代理对应的
-
 func InitTurnStile(client httpclient.AuroraHttpClient, secret *tokens.Secret, proxy string) (*TurnStile, int, error) {
+	currTurnToken, ok := TurnStilePool.Load(secret.Token)
 
-	poolMutex.Lock()
-	defer poolMutex.Unlock()
-	currTurnToken := TurnStilePool[secret.Token]
-	if currTurnToken == nil || currTurnToken.ExpireAt.Before(time.Now()) {
+	if !ok || currTurnToken == nil || currTurnToken.(*TurnStile).ExpireAt.Before(time.Now()) {
 		response, err := POSTTurnStile(client, secret, proxy, 0)
 		if err != nil {
 			return nil, http.StatusInternalServerError, err
@@ -287,16 +285,17 @@ func InitTurnStile(client httpclient.AuroraHttpClient, secret *tokens.Secret, pr
 			Arkose:         result.Arkose.Required,
 			ExpireAt:       time.Now().Add(5 * time.Second),
 		}
-		if result.Proof.Required == true {
-			currTurnToken.ProofOfWorkToken = CalcProofToken(result.Proof.Seed, result.Proof.Difficulty)
+		if result.Proof.Required {
+			currTurnToken.(*TurnStile).ProofOfWorkToken = CalcProofToken(result.Proof.Seed, result.Proof.Difficulty)
 		}
 
 		// 如果是免登账号，将其放入池子
 		if secret.IsFree {
-			TurnStilePool[secret.Token] = currTurnToken
+			TurnStilePool.Store(secret.Token, currTurnToken)
+			//TurnStilePool[secret.Token] = currTurnToken
 		}
 	}
-	return currTurnToken, 0, nil
+	return currTurnToken.(*TurnStile), 0, nil
 }
 
 func POSTTurnStile(client httpclient.AuroraHttpClient, secret *tokens.Secret, proxy string, retry int) (*http.Response, error) {

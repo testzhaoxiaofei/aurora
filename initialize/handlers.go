@@ -10,7 +10,6 @@ import (
 	officialtypes "aurora/typings/official"
 	"aurora/util"
 	"io"
-	"log"
 	"os"
 	"strings"
 
@@ -160,14 +159,12 @@ func (h *Handler) nightmare(c *gin.Context) {
 		return
 	}
 
-	//获取信息
-
 	deviceId, ips := tokens.ConfigProxy()
 	proxyUrl := tokens.Ipv6Set(ips)
-
-	log.Println("deviceId, proxyUrl", deviceId, proxyUrl)
 	secret := h.token.GetSecret()
 	secret.Token = deviceId
+
+	//deviceId
 	authHeader := c.GetHeader("Authorization")
 	if authHeader != "" {
 		customAccessToken := strings.Replace(authHeader, "Bearer ", "", 1)
@@ -184,6 +181,7 @@ func (h *Handler) nightmare(c *gin.Context) {
 	uid := uuid.NewString()
 	client := bogdanfinn.NewStdClient()
 	turnStile, status, err := chatgpt.InitTurnStile(client, secret, proxyUrl)
+
 	if err != nil {
 		c.JSON(status, gin.H{
 			"message": err.Error(),
