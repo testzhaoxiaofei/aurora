@@ -40,9 +40,21 @@ var BaseURL string
 func init() {
 	_ = godotenv.Load(".env")
 	BaseURL = os.Getenv("BASE_URL")
+
+	log.Println("BaseURL", BaseURL)
 	if BaseURL == "" {
-		BaseURL = "https://chat.openai.com/backend-anon"
+		BaseURL = "https://chatgpt.com/backend-anon"
 	}
+
+	log.Println("Base", BaseURL)
+
+	cores := []int{8, 12, 16, 24}
+	screens := []int{3000, 4000, 6000}
+	rand.New(rand.NewSource(time.Now().UnixNano()))
+	core := cores[rand.Intn(4)]
+	rand.New(rand.NewSource(time.Now().UnixNano()))
+	screen := screens[rand.Intn(3)]
+	cachedHardware = core + screen
 }
 
 type connInfo struct {
@@ -59,12 +71,16 @@ var (
 	connPool            = map[string][]*connInfo{}
 	poolMutex           = sync.Mutex{}
 	//TurnStilePool       = map[string]*TurnStile{}
-	TurnStilePool   sync.Map
-	userAgent       = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.0.0 Safari/537.36"
-	cores           = []int{8, 12, 16, 24}
-	screens         = []int{3000, 4000, 6000}
-	timeLocation, _ = time.LoadLocation("Asia/Shanghai")
-	timeLayout      = "Mon Jan 2 2006 15:04:05"
+	TurnStilePool      sync.Map
+	userAgent          = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.0.0 Safari/537.36"
+	cores              = []int{8, 12, 16, 24}
+	screens            = []int{3000, 4000, 6000}
+	timeLocation, _    = time.LoadLocation("Asia/Shanghai")
+	timeLayout         = "Mon Jan 2 2006 15:04:05"
+	cachedHardware     = 0
+	cachedScripts      = []string{}
+	cachedDpl          = ""
+	cachedRequireProof = ""
 )
 
 func getWSURL(client httpclient.AuroraHttpClient, token string, retry int) (string, error) {
@@ -245,6 +261,7 @@ func getConfig() []interface{} {
 	return []interface{}{core + screen, getParseTime(), int64(4294705152), 0, userAgent}
 
 }
+
 func CalcProofToken(seed string, diff string) string {
 	config := getConfig()
 	diffLen := len(diff) / 2
@@ -397,6 +414,10 @@ func POSTconversation(client httpclient.AuroraHttpClient, message chatgpt_types.
 	if secret.IsFree {
 		header.Set("oai-device-id", secret.Token)
 	}
+
+	header.Set("Referer", "https://chatgpt.com/?oai-dm=1")
+	header.Set("Cookie", "oai-did="+secret.Token)
+
 	response, err := client.Request(http.MethodPost, apiUrl, header, nil, bytes.NewBuffer(body_json))
 	if err != nil {
 		return nil, err

@@ -182,6 +182,8 @@ func (h *Handler) nightmare(c *gin.Context) {
 	client := bogdanfinn.NewStdClient()
 	turnStile, status, err := chatgpt.InitTurnStile(client, secret, proxyUrl)
 
+	//log.Println("turnStile", turnStile)
+
 	if err != nil {
 		c.JSON(status, gin.H{
 			"message": err.Error(),

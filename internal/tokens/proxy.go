@@ -2,6 +2,7 @@ package tokens
 
 import (
 	"bufio"
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"log"
@@ -18,6 +19,40 @@ var ips sync.Map
 var ids []string
 var proxyUrl string
 var proxyPrefix string
+
+func GetConfig(c *gin.Context) {
+	c.JSON(200, gin.H{
+		"PUID":         "",
+		"PUIDTIME":     "",
+		"UploadStatus": "500,401,422",
+		"TokenUrl":     proxyUrl,
+	})
+}
+
+func SetConfig(c *gin.Context) {
+	var jsons struct {
+		PUID         string `json:"puid"`
+		TokenUrl     string `json:"token_url"`
+		UploadStatus string `json:"upload_status"`
+		VpsProxy     string `json:"vps_proxy"`
+	}
+
+	if err := c.BindJSON(&jsons); err != nil {
+		return
+	}
+
+	if jsons.VpsProxy != "" {
+		proxyUrl = jsons.VpsProxy
+	}
+
+	c.JSON(200, map[string]interface{}{
+		"PUID":         "",
+		"PUIDTIME":     "",
+		"TokenUrl":     "",
+		"UploadStatus": "",
+		"VpsProxy":     proxyUrl,
+	})
+}
 
 func init() {
 	_ = godotenv.Load(".env")
