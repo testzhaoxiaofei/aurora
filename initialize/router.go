@@ -22,11 +22,7 @@ func RegisterRouter() *gin.Engine {
 		})
 	})
 
-	router.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "pong",
-		})
-	})
+	router.GET("/ping", tokens.Ping)
 
 	router.GET("/puid/get", tokens.GetConfig)
 	router.GET("/puid/set", tokens.SetConfig)

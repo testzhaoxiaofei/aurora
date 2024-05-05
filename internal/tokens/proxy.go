@@ -19,6 +19,15 @@ var ips sync.Map
 var ids []string
 var proxyUrl string
 var proxyPrefix string
+var Pingx string
+
+func Ping(c *gin.Context) {
+	if Pingx == "1" {
+		c.JSON(503, "server error")
+	} else {
+		c.JSON(200, "pong")
+	}
+}
 
 func GetConfig(c *gin.Context) {
 	c.JSON(200, gin.H{

@@ -419,6 +419,11 @@ func POSTconversation(client httpclient.AuroraHttpClient, message chatgpt_types.
 	header.Set("Cookie", "oai-did="+secret.Token)
 
 	response, err := client.Request(http.MethodPost, apiUrl, header, nil, bytes.NewBuffer(body_json))
+
+	if response.StatusCode != 200 {
+		tokens.AddCount()
+	}
+
 	if err != nil {
 		return nil, err
 	}
