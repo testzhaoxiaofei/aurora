@@ -159,6 +159,8 @@ func (h *Handler) nightmare(c *gin.Context) {
 
 	deviceId, ips := tokens.ConfigProxy()
 	proxyUrl := tokens.Ipv6Set(ips)
+
+	//proxyUrl = "http://kkq:2a0e%3A9b01%3A5%3Aebe5%3A563a%3A4d1a%3Af24e%3A4fc9@199.195.253.127:31281"
 	//secret := h.token.GetSecret()
 	//secret.Token = deviceId
 
@@ -204,7 +206,9 @@ func (h *Handler) nightmare(c *gin.Context) {
 	translated_request := chatgptrequestconverter.ConvertAPIRequest(original_request, deviceId, turnStile.Arkose, proxyUrl)
 
 	response, err := chatgpt.POSTconversation(translated_request, deviceId, turnStile, proxyUrl)
-
+	if response.StatusCode == 403 {
+		log.Println("bogdanfinn1", bogdanfinn.Client.GetProxy())
+	}
 	if err != nil {
 		c.JSON(500, gin.H{
 			"error": "request conversion error",

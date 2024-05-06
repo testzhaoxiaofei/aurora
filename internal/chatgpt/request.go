@@ -327,6 +327,10 @@ func InitTurnStile(deviceId, proxy string) (*TurnStile, int, error) {
 	//存放在redis 当中
 	if err != nil || currTurnTokenStr == "" {
 		response, err := POSTTurnStile(deviceId, proxy, 0)
+		if response.StatusCode == 403 {
+			log.Println("bogdanfinn1", bogdanfinn.Client.GetProxy())
+		}
+
 		if err != nil {
 			return nil, http.StatusInternalServerError, err
 		}
@@ -347,7 +351,7 @@ func InitTurnStile(deviceId, proxy string) (*TurnStile, int, error) {
 		}
 
 		turnStileByte, _ := json.Marshal(turnStile)
-		redis.Redis.Set("data:pow:"+deviceId, turnStileByte, 300)
+		redis.Redis.Set("data:pow:"+deviceId, turnStileByte, 180)
 	} else {
 		json.Unmarshal([]byte(currTurnTokenStr), &turnStile)
 	}
