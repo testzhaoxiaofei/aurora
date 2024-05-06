@@ -4,6 +4,7 @@ import (
 	"aurora/conversion/response/chatgpt"
 	"aurora/httpclient"
 	"aurora/internal/tokens"
+	"aurora/pkg/redis"
 	"aurora/typings"
 	chatgpt_types "aurora/typings/chatgpt"
 	official_types "aurora/typings/official"
@@ -70,17 +71,15 @@ var (
 	FILES_REVERSE_PROXY = os.Getenv("FILES_REVERSE_PROXY")
 	connPool            = map[string][]*connInfo{}
 	poolMutex           = sync.Mutex{}
-	//TurnStilePool       = map[string]*TurnStile{}
-	TurnStilePool      sync.Map
-	userAgent          = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.0.0 Safari/537.36"
-	cores              = []int{8, 12, 16, 24}
-	screens            = []int{3000, 4000, 6000}
-	timeLocation, _    = time.LoadLocation("Asia/Shanghai")
-	timeLayout         = "Mon Jan 2 2006 15:04:05"
-	cachedHardware     = 0
-	cachedScripts      = []string{}
-	cachedDpl          = ""
-	cachedRequireProof = ""
+	userAgent           = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.0.0 Safari/537.36"
+	cores               = []int{8, 12, 16, 24}
+	screens             = []int{3000, 4000, 6000}
+	timeLocation, _     = time.LoadLocation("Asia/Shanghai")
+	timeLayout          = "Mon Jan 2 2006 15:04:05"
+	cachedHardware      = 0
+	cachedScripts       = []string{}
+	cachedDpl           = ""
+	cachedRequireProof  = ""
 )
 
 func getWSURL(client httpclient.AuroraHttpClient, token string, retry int) (string, error) {
@@ -281,9 +280,13 @@ func CalcProofToken(seed string, diff string) string {
 }
 
 func InitTurnStile(client httpclient.AuroraHttpClient, secret *tokens.Secret, proxy string) (*TurnStile, int, error) {
-	currTurnToken, ok := TurnStilePool.Load(secret.Token)
+	//currTurnToken, ok := TurnStilePool.Load(secret.Token)
 
-	if !ok || currTurnToken == nil || currTurnToken.(*TurnStile).ExpireAt.Before(time.Now()) {
+	currTurnTokenStr, err := redis.Redis.Get("data:pow:" + secret.Token)
+	var turnStile TurnStile
+
+	//存放在redis 当中
+	if err != nil || currTurnTokenStr == "" {
 		response, err := POSTTurnStile(client, secret, proxy, 0)
 		if err != nil {
 			return nil, http.StatusInternalServerError, err
@@ -297,22 +300,23 @@ func InitTurnStile(client httpclient.AuroraHttpClient, secret *tokens.Secret, pr
 			return nil, response.StatusCode, err
 		}
 
-		currTurnToken = &TurnStile{
-			TurnStileToken: result.Token,
-			Arkose:         result.Arkose.Required,
-			ExpireAt:       time.Now().Add(5 * time.Second),
-		}
+		turnStile.TurnStileToken = result.Token
+		turnStile.Arkose = result.Arkose.Required
+		//turnStile.ExpireAt = time.Now().Add(5 * time.Second)
 		if result.Proof.Required {
-			currTurnToken.(*TurnStile).ProofOfWorkToken = CalcProofToken(result.Proof.Seed, result.Proof.Difficulty)
+			turnStile.ProofOfWorkToken = CalcProofToken(result.Proof.Seed, result.Proof.Difficulty)
 		}
 
 		// 如果是免登账号，将其放入池子
 		if secret.IsFree {
-			TurnStilePool.Store(secret.Token, currTurnToken)
-			//TurnStilePool[secret.Token] = currTurnToken
+			turnStileByte, _ := json.Marshal(turnStile)
+			redis.Redis.Set("data:pow:"+secret.Token, turnStileByte, 300)
 		}
+	} else {
+		json.Unmarshal([]byte(currTurnTokenStr), &turnStile)
 	}
-	return currTurnToken.(*TurnStile), 0, nil
+
+	return &turnStile, 0, nil
 }
 
 func POSTTurnStile(client httpclient.AuroraHttpClient, secret *tokens.Secret, proxy string, retry int) (*http.Response, error) {

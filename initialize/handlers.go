@@ -172,6 +172,7 @@ func (h *Handler) nightmare(c *gin.Context) {
 			secret = h.token.GenerateTempToken(customAccessToken)
 		}
 	}
+
 	if secret == nil {
 		c.JSON(400, gin.H{"error": "Not Account Found."})
 		c.Abort()

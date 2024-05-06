@@ -2,6 +2,8 @@ package main
 
 import (
 	"aurora/initialize"
+	"aurora/pkg/redis"
+	"aurora/pkg/setting"
 	"embed"
 	"io/fs"
 	"log"
@@ -17,6 +19,10 @@ import (
 //go:embed web/*
 var staticFiles embed.FS
 
+func init() {
+	setting.Setup()
+	redis.Setup()
+}
 func main() {
 	gin.SetMode(gin.ReleaseMode)
 	router := initialize.RegisterRouter()

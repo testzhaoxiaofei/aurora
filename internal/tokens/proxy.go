@@ -11,11 +11,10 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"sync"
 	"time"
 )
 
-var ips sync.Map
+var ips map[string]string
 var ids []string
 var proxyUrl string
 var proxyPrefix string
@@ -72,10 +71,14 @@ func init() {
 		log.Println("启动失败")
 		return
 	}
+	ips = make(map[string]string)
 	for _, ipv64 := range ipv64 {
 		UUID := uuid.NewString()
 		ids = append(ids, UUID)
-		ips.Store(UUID, ipv64)
+		//ips.Store(UUID, ipv64)
+		if UUID != "" && ipv64 != "" {
+			ips[UUID] = ipv64
+		}
 	}
 }
 
@@ -99,10 +102,11 @@ func readLines(filename string) ([]string, error) {
 
 func ConfigProxy() (string, string) {
 	deviceId := randomString(ids)
-	if value, ok := ips.Load(deviceId); ok {
+	if value, ok := ips[deviceId]; ok {
 		log.Println(value, ok)
-		return deviceId, value.(string)
+		return deviceId, value
 	}
+
 	return deviceId, ""
 }
 
