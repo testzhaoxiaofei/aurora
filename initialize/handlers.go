@@ -8,6 +8,7 @@ import (
 	"aurora/internal/tokens"
 	officialtypes "aurora/typings/official"
 	"aurora/util"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -157,10 +158,19 @@ func (h *Handler) nightmare(c *gin.Context) {
 		return
 	}
 
-	deviceId, ips := tokens.ConfigProxy()
+	deviceId, ips, err := tokens.GetCacheList()
+	log.Println("proxyUrl := tokens.Ipv6Set(ips)", deviceId, ips, err)
+
+	if deviceId == "" || err != nil {
+		c.JSON(400, gin.H{"error": "Not Account Found."})
+		c.Abort()
+		return
+	}
+
 	proxyUrl := tokens.Ipv6Set(ips)
 
-	//proxyUrl = "http://kkq:2a0e%3A9b01%3A5%3Aebe5%3A563a%3A4d1a%3Af24e%3A4fc9@199.195.253.127:31281"
+	log.Println("proxyUrl := tokens.Ipv6Set(ips)", proxyUrl)
+	//proxyUrl = "http://kkq:2a0e%3A9b01%3A5%3Ae87a%3Aa713%3A3f4c%3A8d0d%3Ac6ec@199.195.253.127:31281"
 	//secret := h.token.GetSecret()
 	//secret.Token = deviceId
 
@@ -172,12 +182,6 @@ func (h *Handler) nightmare(c *gin.Context) {
 	//		secret = h.token.GenerateTempToken(customAccessToken)
 	//	}
 	//}
-
-	if deviceId == "" {
-		c.JSON(400, gin.H{"error": "Not Account Found."})
-		c.Abort()
-		return
-	}
 
 	//uid := uuid.NewString()
 	turnStile, status, err := chatgpt.InitTurnStile(deviceId, proxyUrl)
@@ -206,9 +210,11 @@ func (h *Handler) nightmare(c *gin.Context) {
 	translated_request := chatgptrequestconverter.ConvertAPIRequest(original_request, deviceId, turnStile.Arkose, proxyUrl)
 
 	response, err := chatgpt.POSTconversation(translated_request, deviceId, turnStile, proxyUrl)
+
 	if response.StatusCode == 403 {
 		log.Println("bogdanfinn1", bogdanfinn.Client.GetProxy())
 	}
+
 	if err != nil {
 		c.JSON(500, gin.H{
 			"error": "request conversion error",
@@ -216,7 +222,13 @@ func (h *Handler) nightmare(c *gin.Context) {
 		return
 	}
 
-	defer response.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			return
+		}
+	}(response.Body)
+
 	if chatgpt.Handle_request_error(c, response) {
 		return
 	}

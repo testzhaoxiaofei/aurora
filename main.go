@@ -2,6 +2,7 @@ package main
 
 import (
 	"aurora/initialize"
+	"aurora/internal/task"
 	"aurora/pkg/redis"
 	"aurora/pkg/setting"
 	"embed"
@@ -47,6 +48,10 @@ func main() {
 			port = "8080"
 		}
 	}
+
+	go func() {
+		task.CacheCreate()
+	}()
 
 	if tlsCert != "" && tlsKey != "" {
 		_ = endless.ListenAndServeTLS(host+":"+port, tlsCert, tlsKey, router)

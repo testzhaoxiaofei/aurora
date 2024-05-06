@@ -1,7 +1,10 @@
 package tokens
 
 import (
+	"aurora/pkg/redis"
+	"aurora/pkg/setting"
 	"bufio"
+	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
@@ -15,10 +18,12 @@ import (
 )
 
 var ips map[string]string
-var ids []string
+
+// var ids []string
 var proxyUrl string
 var proxyPrefix string
 var Pingx string
+var CacheListKey string
 
 func Ping(c *gin.Context) {
 	if Pingx == "1" {
@@ -63,6 +68,8 @@ func SetConfig(c *gin.Context) {
 }
 
 func init() {
+	setting.Setup()
+	redis.Setup()
 	_ = godotenv.Load(".env")
 	proxyUrl = os.Getenv("PROXY_URL")
 	proxyPrefix = os.Getenv("PROXY_PREFIX")
@@ -71,15 +78,42 @@ func init() {
 		log.Println("启动失败")
 		return
 	}
+	CacheListKey = "data:tokens:list:" + os.Getenv("SERVER_PORT")
+
 	ips = make(map[string]string)
+	var ipsList []string
 	for _, ipv64 := range ipv64 {
 		UUID := uuid.NewString()
-		ids = append(ids, UUID)
+		//ids = append(ids, UUID)
 		//ips.Store(UUID, ipv64)
+		//log.Println(ids)
 		if UUID != "" && ipv64 != "" {
-			ips[UUID] = ipv64
+			//ips[UUID] = ipv64
+			ipsList = append(ipsList, url.QueryEscape(UUID+"|"+ipv64))
 		}
 	}
+
+	if len(ipsList) > 0 {
+		redis.Redis.LushS(CacheListKey, ipsList)
+	}
+}
+
+func GetCacheList() (string, string, error) {
+	//取出，存入
+	ipSub, err := redis.Redis.LPop(CacheListKey)
+	if err != nil || ipSub.(string) == "" {
+		return "", "", errors.New("redis error")
+	}
+
+	ipSubStr, _ := url.QueryUnescape(ipSub.(string))
+	redis.Redis.RPush(CacheListKey, ipSub.(string))
+	p := strings.Split(ipSubStr, "|")
+
+	if len(p) < 2 {
+		return "", "", errors.New("redis error -1")
+	}
+
+	return p[0], p[1], nil
 }
 
 func readLines(filename string) ([]string, error) {
@@ -100,15 +134,15 @@ func readLines(filename string) ([]string, error) {
 	return lines, nil
 }
 
-func ConfigProxy() (string, string) {
-	deviceId := randomString(ids)
-	if value, ok := ips[deviceId]; ok {
-		log.Println(value, ok)
-		return deviceId, value
-	}
-
-	return deviceId, ""
-}
+//func ConfigProxy() (string, string) {
+//	deviceId := randomString(ids)
+//	if value, ok := ips[deviceId]; ok {
+//		log.Println(value, ok)
+//		return deviceId, value
+//	}
+//
+//	return deviceId, ""
+//}
 
 // 随机
 func randomString(strings []string) string {
