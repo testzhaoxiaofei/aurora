@@ -265,7 +265,7 @@ func CalcProofToken(seed string, diff string) string {
 	config := getConfig()
 	diffLen := len(diff) / 2
 	hasher := sha3.New512()
-	for i := 0; i < 100000; i++ {
+	for i := 0; i < 500000; i++ {
 		config[3] = i
 		json, _ := json.Marshal(config)
 		base := base64.StdEncoding.EncodeToString(json)
