@@ -15,16 +15,26 @@ type TlsClient struct {
 	ReqBefore handler
 }
 
+var Client tls_client.HttpClient
+
 type handler func(r *fhttp.Request) error
 
-func NewStdClient() *TlsClient {
-	client, _ := tls_client.NewHttpClient(tls_client.NewNoopLogger(), []tls_client.HttpClientOption{
+func init() {
+	Client, _ = tls_client.NewHttpClient(tls_client.NewNoopLogger(), []tls_client.HttpClientOption{
 		tls_client.WithCookieJar(tls_client.NewCookieJar()),
 		tls_client.WithTimeoutSeconds(600),
-		tls_client.WithClientProfile(profiles.Safari_15_6_1),
+		tls_client.WithClientProfile(profiles.Firefox_120),
+	}...)
+}
+
+func NewStdClient() *TlsClient {
+	Client, _ := tls_client.NewHttpClient(tls_client.NewNoopLogger(), []tls_client.HttpClientOption{
+		tls_client.WithCookieJar(tls_client.NewCookieJar()),
+		tls_client.WithTimeoutSeconds(600),
+		tls_client.WithClientProfile(profiles.Firefox_120),
 	}...)
 
-	stdClient := &TlsClient{Client: client}
+	stdClient := &TlsClient{Client: Client}
 	return stdClient
 }
 
